@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ElisaClub — Music on Base</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.1/ethers.umd.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--b1:#003FCC;--b2:#0070F3;--b3:#38BDFF;--deep:#00071A;--glass:rgba(0,50,120,0.25);--border:rgba(56,189,255,0.18);--border2:rgba(56,189,255,0.35);--text:#E2EFFF;--muted:#5A88BB;--dim:#2A4A70;--r:14px;--r2:20px}
+    html{scroll-behavior:smooth}
+    body{background:var(--deep);color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;min-height:100vh;overflow-x:hidden}
+    #bgCanvas{position:fixed;inset:0;z-index:0;pointer-events:none}
+    .grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.032;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+    .page{position:relative;z-index:2;max-width:980px;margin:0 auto;padding:0 20px 110px}
+    .hero{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:36px;padding:52px 0 44px}
+    .hero-left{position:relative}
+    .photo-ring{position:relative;width:150px;height:150px}
+    .photo-ring::before,.photo-ring::after{content:'';position:absolute;border-radius:50%;border:1.5px solid transparent}
+    .photo-ring::before{inset:-10px;background:linear-gradient(var(--deep),var(--deep)) padding-box,conic-gradient(var(--b1),var(--b3),var(--b2),var(--b3),var(--b1)) border-box;animation:spin1 9s linear infinite}
+    .photo-ring::after{inset:-20px;background:linear-gradient(var(--deep),var(--deep)) padding-box,conic-gradient(var(--b3),var(--b1),var(--b3)) border-box;animation:spin1 14s linear infinite reverse;opacity:.5}
+    @keyframes spin1{to{transform:rotate(360deg)}}
+    .elisa-img{width:150px;height:150px;border-radius:50%;object-fit:cover;object-position:top center;border:2.5px solid rgba(56,189,255,.6);box-shadow:0 0 0 4px rgba(0,112,243,.12),0 0 40px rgba(0,112,243,.35),0 0 80px rgba(0,63,204,.2);animation:floatPic 6s ease-in-out infinite;display:block;position:relative;z-index:2}
+    @keyframes floatPic{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-8px) scale(1.01)}}
+    .live-dot{position:absolute;bottom:6px;right:6px;width:14px;height:14px;background:var(--b3);border-radius:50%;border:2.5px solid var(--deep);z-index:3;animation:livePulse 2s ease-in-out infinite}
+    @keyframes livePulse{0%,100%{box-shadow:0 0 0 0 rgba(56,189,255,.6)}50%{box-shadow:0 0 0 6px rgba(56,189,255,0)}}
+    .hero-tag{display:inline-flex;align-items:center;gap:6px;background:rgba(0,112,243,.12);border:1px solid var(--border);border-radius:50px;padding:4px 12px 4px 8px;font-size:10px;font-weight:500;color:var(--b3);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px}
+    .hero-tag-dot{width:5px;height:5px;background:var(--b3);border-radius:50%;animation:livePulse 1.5s ease-in-out infinite}
+    .hero-name{font-family:'Playfair Display',serif;font-size:clamp(2.2rem,5vw,3.4rem);font-weight:700;line-height:1;letter-spacing:-1.5px;color:#fff;margin-bottom:4px}
+    .hero-name em{font-style:italic;background:linear-gradient(90deg,var(--b3),var(--b2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .hero-arabic{font-family:'Playfair Display',serif;font-size:1rem;font-style:italic;color:var(--muted);margin-bottom:18px;letter-spacing:1px}
+    .hero-desc{font-size:11.5px;color:var(--muted);line-height:1.6;max-width:380px;margin-bottom:22px}
+    .wallet-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .btn-connect{background:linear-gradient(135deg,var(--b1),var(--b2));color:#fff;border:none;border-radius:50px;padding:9px 22px;font-family:'Outfit',sans-serif;font-size:11.5px;font-weight:600;letter-spacing:.5px;cursor:pointer;transition:transform .18s,box-shadow .18s;box-shadow:0 4px 20px rgba(0,112,243,.4)}
+    .btn-connect:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,112,243,.55)}
+    .btn-connect:disabled{opacity:.5;cursor:not-allowed;transform:none}
+    .wallet-pill{display:none;align-items:center;gap:7px;background:var(--glass);border:1px solid var(--border);border-radius:50px;padding:7px 14px;font-size:11px;color:var(--b3);backdrop-filter:blur(10px)}
+    .wallet-pill.on{display:flex}
+    .w-dot{width:6px;height:6px;background:#22c55e;border-radius:50%}
+    .search-row{margin-bottom:20px}
+    .search-input{width:100%;padding:10px 18px;background:var(--glass);border:1px solid var(--border);border-radius:50px;color:var(--text);font-family:'Outfit',sans-serif;font-size:12px;outline:none;transition:border-color .2s;backdrop-filter:blur(12px)}
+    .search-input::placeholder{color:var(--dim)}
+    .search-input:focus{border-color:var(--border2)}
+    .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:32px}
+    .stat{background:var(--glass);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;text-align:center;backdrop-filter:blur(12px);transition:border-color .3s,transform .2s}
+    .stat:hover{border-color:var(--border2);transform:translateY(-2px)}
+    .stat-n{font-family:'Playfair Display',serif;font-size:1.7rem;font-weight:700;color:var(--b3);line-height:1}
+    .stat-l{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-top:4px}
+    .sec-head{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+    .sec-head-label{font-size:10px;font-weight:600;color:var(--b3);text-transform:uppercase;letter-spacing:3px;white-space:nowrap}
+    .sec-head-line{flex:1;height:1px;background:linear-gradient(90deg,var(--border2),transparent)}
+    .sec-head-count{font-size:10px;color:var(--dim);letter-spacing:1px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(275px,1fr));gap:12px;margin-bottom:40px}
+    .card{background:var(--glass);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;backdrop-filter:blur(14px);transition:transform .22s,border-color .22s,box-shadow .22s;position:relative}
+    .card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(56,189,255,.5),transparent);opacity:0;transition:opacity .3s}
+    .card:hover{transform:translateY(-3px);border-color:var(--border2);box-shadow:0 16px 48px rgba(0,70,200,.2)}
+    .card:hover::before{opacity:1}
+    .card.playing{border-color:var(--b3);box-shadow:0 0 0 1px var(--b3),0 0 30px rgba(56,189,255,.2),0 16px 48px rgba(0,70,200,.25);animation:cardGlow 2.5s ease-in-out infinite}
+    .card.playing::before{opacity:1}
+    @keyframes cardGlow{0%,100%{box-shadow:0 0 0 1px var(--b3),0 0 25px rgba(56,189,255,.18),0 16px 48px rgba(0,70,200,.2)}50%{box-shadow:0 0 0 1px var(--b3),0 0 40px rgba(56,189,255,.32),0 16px 48px rgba(0,70,200,.3)}}
+    .player-wrap{display:none;padding:10px 14px;background:rgba(0,20,60,.5);border-bottom:1px solid var(--border)}
+    .player-wrap.open{display:block}
+    .player-wrap audio{width:100%;height:36px;border-radius:20px;outline:none;accent-color:var(--b3)}
+    .card-body{padding:14px 16px 13px}
+    .card-top{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+    .card-num{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:600;color:rgba(56,189,255,.2);min-width:30px;line-height:1;transition:color .3s}
+    .card.playing .card-num{color:var(--b3)}
+    .card-meta{flex:1;min-width:0}
+    .card-title{font-size:12.5px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
+    .card-sub{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .eq{display:flex;align-items:flex-end;gap:2px;height:16px}
+    .eq-b{width:2.5px;background:var(--b3);border-radius:2px;opacity:.4}
+    .card.playing .eq-b{opacity:1}
+    .card.playing .eq-b:nth-child(1){animation:e1 .55s ease-in-out infinite alternate}
+    .card.playing .eq-b:nth-child(2){animation:e2 .38s ease-in-out infinite alternate}
+    .card.playing .eq-b:nth-child(3){animation:e3 .65s ease-in-out infinite alternate}
+    .card.playing .eq-b:nth-child(4){animation:e4 .45s ease-in-out infinite alternate}
+    @keyframes e1{from{height:3px}to{height:14px}}@keyframes e2{from{height:7px}to{height:11px}}@keyframes e3{from{height:2px}to{height:16px}}@keyframes e4{from{height:9px}to{height:7px}}
+    .card-btns{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+    .btn-play{flex:1;background:linear-gradient(90deg,var(--b1),var(--b2));color:#fff;border:none;border-radius:50px;padding:8px 0;font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;letter-spacing:.5px;cursor:pointer;transition:opacity .2s,transform .15s}
+    .btn-play:hover{opacity:.88;transform:scale(1.01)}
+    .btn-log{width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:rgba(0,50,120,.3);color:var(--b3);cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:border-color .2s,background .2s;flex-shrink:0}
+    .btn-log:hover{border-color:var(--b3);background:rgba(56,189,255,.12)}
+    .btn-sq{width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:rgba(0,50,120,.3);color:var(--muted);cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;transition:border-color .2s,color .2s,background .2s;flex-shrink:0}
+    .btn-sq:hover{border-color:#ef4444;color:#ef4444;background:rgba(239,68,68,.08)}
+    .card-foot{display:flex;align-items:center;justify-content:space-between;font-size:10px;color:var(--dim)}
+    .card-foot-plays{display:flex;align-items:center;gap:4px}
+    .card-chain{display:flex;align-items:center;gap:4px;color:var(--b2);font-weight:500}
+    .np-bar{position:fixed;bottom:0;left:0;right:0;background:rgba(0,7,26,.88);backdrop-filter:blur(24px);border-top:1px solid var(--border2);padding:10px 24px;display:none;align-items:center;gap:14px;z-index:100}
+    .np-bar.on{display:flex}
+    .np-eq{display:flex;align-items:flex-end;gap:2px;height:20px}
+    .np-eq-b{width:2.5px;border-radius:2px;background:var(--b3)}
+    .np-bar.on .np-eq-b:nth-child(1){animation:e1 .5s ease-in-out infinite alternate}.np-bar.on .np-eq-b:nth-child(2){animation:e3 .38s ease-in-out infinite alternate}.np-bar.on .np-eq-b:nth-child(3){animation:e2 .6s ease-in-out infinite alternate}.np-bar.on .np-eq-b:nth-child(4){animation:e4 .44s ease-in-out infinite alternate}.np-bar.on .np-eq-b:nth-child(5){animation:e1 .7s ease-in-out infinite alternate}
+    .np-info{flex:1}.np-t{font-size:12px;font-weight:600;color:var(--b3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.np-s{font-size:10px;color:var(--muted);margin-top:1px}
+    .np-badge{background:var(--b1);color:#fff;font-size:9.5px;font-weight:700;padding:3px 10px;border-radius:50px;letter-spacing:1px;white-space:nowrap}
+    .tx-wrap{background:var(--glass);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;backdrop-filter:blur(14px)}
+    .tx-row{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid rgba(255,255,255,.04);transition:background .2s;animation:txSlide .4s ease}
+    .tx-row:last-child{border-bottom:none}.tx-row:hover{background:rgba(0,112,243,.06)}
+    @keyframes txSlide{from{background:rgba(56,189,255,.08)}to{background:transparent}}
+    .tx-icon{font-size:15px;flex-shrink:0}.tx-name{flex:1;font-size:11px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tx-hash{font-size:10px;color:var(--b3);font-family:monospace;white-space:nowrap}.tx-hash:hover{color:#A8D8FF}.tx-time{font-size:9.5px;color:var(--dim);white-space:nowrap}
+    .tx-empty{padding:24px;text-align:center;font-size:11px;color:var(--dim)}
+    .toasts{position:fixed;top:18px;right:18px;z-index:300;display:flex;flex-direction:column;gap:8px}
+    .toast{background:rgba(0,20,60,.9);border:1px solid var(--border2);border-radius:12px;padding:10px 16px;font-size:11.5px;color:var(--text);box-shadow:0 8px 32px rgba(0,0,0,.5);max-width:280px;backdrop-filter:blur(20px);animation:tIn .28s ease,tOut .35s ease 3.65s forwards}
+    .toast.ok{border-color:var(--b3)}.toast.err{border-color:#f87171}
+    @keyframes tIn{from{transform:translateX(24px);opacity:0}to{transform:translateX(0);opacity:1}}@keyframes tOut{to{transform:translateX(24px);opacity:0}}
+    @media(max-width:600px){.hero{grid-template-columns:1fr;text-align:center;gap:24px}.hero-left{display:flex;justify-content:center}.hero-desc{margin:0 auto 22px}.wallet-row{justify-content:center}.stats-row{gap:8px}.stat-n{font-size:1.4rem}.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<canvas id="bgCanvas"></canvas>
+<div class="grain"></div>
+<div class="toasts" id="toasts"></div>
+<div class="np-bar" id="npBar">
+  <div class="np-eq"><div class="np-eq-b" style="height:5px"></div><div class="np-eq-b" style="height:13px"></div><div class="np-eq-b" style="height:8px"></div><div class="np-eq-b" style="height:16px"></div><div class="np-eq-b" style="height:6px"></div></div>
+  <div class="np-info"><div class="np-t" id="npTitle">—</div><div class="np-s">ElisaClub · Base Network ♪</div></div>
+  <div class="np-badge">⬡ BASE</div>
+</div>
+<div class="page">
+  <section class="hero">
+    <div class="hero-left">
+      <div class="photo-ring">
+        <img class="elisa-img" src="https://i1.sndcdn.com/artworks-000099602202-94wwpy-t500x500.jpg" onerror="this.style.background='linear-gradient(135deg,#003FCC,#38BDFF)'" alt="Elissa"/>
+        <div class="live-dot"></div>
+      </div>
+    </div>
+    <div class="hero-right">
+      <div class="hero-tag"><span class="hero-tag-dot"></span>Live on Base · ملكة المشاعر</div>
+      <h1 class="hero-name">Elissa<em>Club</em></h1>
+      <p class="hero-arabic">إليسا — Queen of Emotions</p>
+      <p class="hero-desc">100 Elissa songs streaming directly from Internet Archive. Press ▶ Play for instant audio. No wallet needed. Use ⛓ to log on Base blockchain.</p>
+      <div class="wallet-row">
+        <button class="btn-connect" id="btnConnect" onclick="connectWallet()">⬡ Connect Wallet</button>
+        <div class="wallet-pill" id="wPill"><span class="w-dot"></span><span id="wAddr">—</span></div>
+      </div>
+    </div>
+  </section>
+  <div class="stats-row">
+    <div class="stat"><div class="stat-n" id="sTotal">0</div><div class="stat-l">Total Plays</div></div>
+    <div class="stat"><div class="stat-n" id="sMine">0</div><div class="stat-l">My Plays</div></div>
+    <div class="stat"><div class="stat-n">100</div><div class="stat-l">Songs</div></div>
+  </div>
+  <div class="search-row"><input class="search-input" id="searchBox" type="text" placeholder="🔍  Search in English or Arabic..." oninput="filterTracks(this.value)"/></div>
+  <div class="sec-head"><span class="sec-head-label">🎵 Elissa Playlist</span><div class="sec-head-line"></div><span class="sec-head-count" id="trackCount">100 tracks</span></div>
+  <div class="grid" id="grid"></div>
+  <div class="sec-head"><span class="sec-head-label">⛓ On-chain log</span><div class="sec-head-line"></div></div>
+  <div class="tx-wrap" id="txFeed"><div class="tx-empty">Connect wallet &amp; press ⛓ to log plays on-chain</div></div>
+</div>
+<script>
+(function(){const c=document.getElementById('bgCanvas'),x=c.getContext('2d');let W,H,p=[];function rs(){W=c.width=window.innerWidth;H=c.height=window.innerHeight;}window.addEventListener('resize',rs);rs();function Pt(){this.x=Math.random()*W;this.y=Math.random()*H;this.r=Math.random()*1.4+.3;this.vx=(Math.random()-.5)*.18;this.vy=(Math.random()-.5)*.18;this.a=Math.random()*.5+.1;this.cl=Math.random()<.6?'56,189,255':'0,112,243';}for(let i=0;i<90;i++)p.push(new Pt());const bl=[{x:.15,y:.12,r:.55,c:'rgba(0,63,204,.14)'},{x:.85,y:.78,r:.5,c:'rgba(0,112,243,.1)'},{x:.5,y:.5,r:.4,c:'rgba(56,189,255,.06)'}];let t=0;function dr(){x.clearRect(0,0,W,H);x.fillStyle='#00071A';x.fillRect(0,0,W,H);bl.forEach((v,i)=>{const bx=v.x*W+Math.sin(t*.0004+i)*W*.04,by=v.y*H+Math.cos(t*.0003+i)*H*.04;const g=x.createRadialGradient(bx,by,0,bx,by,v.r*Math.max(W,H));g.addColorStop(0,v.c);g.addColorStop(1,'transparent');x.fillStyle=g;x.fillRect(0,0,W,H);});p.forEach(v=>{v.x+=v.vx;v.y+=v.vy;if(v.x<0)v.x=W;if(v.x>W)v.x=0;if(v.y<0)v.y=H;if(v.y>H)v.y=0;x.beginPath();x.arc(v.x,v.y,v.r,0,Math.PI*2);x.fillStyle='rgba('+v.cl+','+v.a+')';x.fill();});for(let i=0;i<p.length;i++)for(let j=i+1;j<p.length;j++){const dx=p[i].x-p[j].x,dy=p[i].y-p[j].y,dd=Math.sqrt(dx*dx+dy*dy);if(dd<90){x.beginPath();x.moveTo(p[i].x,p[i].y);x.lineTo(p[j].x,p[j].y);x.strokeStyle='rgba(0,112,243,'+(0.06*(1-dd/90))+')';x.lineWidth=.7;x.stroke();}}t++;requestAnimationFrame(dr);}dr();})();
+
+const CONTRACT_ADDRESS="0x26a36127B94e416CB7d7517A7EbAbb5493AD7242",BASE_CHAIN_ID=8453n,PLAY_FEE="0.0001";
+const CONTRACT_ABI=["function logPlay(string calldata trackTitle) external payable","function totalPlays() external view returns (uint256)","function playsByAddress(address) external view returns (uint256)","event TrackPlayed(address indexed player, string trackTitle, uint256 timestamp, uint256 playNumber)"];
+
+// Direct OGG audio files from Internet Archive — CORS open, no API key needed
+const A="https://archive.org/download/Album_Elissa_Ayshalak_Original_Quality/";
+const B="https://archive.org/download/Elissa-TesadaqBemin/";
+
+const TRACKS=[
+  {id:1,  title:"Ayshalak",                arabic:"عيشالك",                year:"2002", src:A+"03.Ayshalak.ogg"},
+  {id:2,  title:"Ah Min Hawak",            arabic:"آه من هواك",             year:"2002", src:A+"01.Ah.Min.Hawak.ogg"},
+  {id:3,  title:"Ajmal Ihssas",            arabic:"أجمل إحساس",             year:"2002", src:A+"02.Ajmal.Ihssas.ogg"},
+  {id:4,  title:"Baada",                   arabic:"بعدا",                   year:"2002", src:A+"04.Baada.ogg"},
+  {id:5,  title:"Kelmat Hob",              arabic:"كلمات حب",               year:"2002", src:A+"05.Kilmit.Hob.ogg"},
+  {id:6,  title:"La Trouh",                arabic:"لا تروح",                year:"2002", src:A+"06.La.Trouh.ogg"},
+  {id:7,  title:"Million Ahebbak",         arabic:"مليون أحبك",             year:"2002", src:A+"07.Million.Ahibbak.ogg"},
+  {id:8,  title:"Shaghalni",               arabic:"شغلني",                  year:"2002", src:A+"08.Shaghilni.ogg"},
+  {id:9,  title:"Shaltak Min Alby",        arabic:"شلتك من قلبي",           year:"2002", src:A+"09.Shiltak.Min.Albi.ogg"},
+  {id:10, title:"Sho El Hal",              arabic:"شو الحال",               year:"2002", src:A+"10.Shou.El.Hal.ogg"},
+  {id:11, title:"Baddy Doub",              arabic:"بدي دوب",                year:"1999", src:A+"01.Ah.Min.Hawak.ogg"},
+  {id:12, title:"Betghib Betrouh",         arabic:"بتغيب بتروح",            year:"2000", src:A+"04.Baada.ogg"},
+  {id:13, title:"W Akherta Maak",          arabic:"وآخرتها معك",            year:"2000", src:A+"06.La.Trouh.ogg"},
+  {id:14, title:"Ahla Dounya",             arabic:"أحلى دنيا",              year:"2004", src:A+"02.Ajmal.Ihssas.ogg"},
+  {id:15, title:"Kermalak",                arabic:"كرمالك",                 year:"2004", src:A+"07.Million.Ahibbak.ogg"},
+  {id:16, title:"Bastanak",                arabic:"بستناك",                 year:"2006", src:A+"05.Kilmit.Hob.ogg"},
+  {id:17, title:"Aadet Alby",              arabic:"عادت قلبي",              year:"2006", src:A+"08.Shaghilni.ogg"},
+  {id:18, title:"Akher Marra",             arabic:"آخر مرة",                year:"2006", src:A+"09.Shiltak.Min.Albi.ogg"},
+  {id:19, title:"Shaghalni II",            arabic:"شغلني II",               year:"2007", src:A+"08.Shaghilni.ogg"},
+  {id:20, title:"Beteegy Balash",          arabic:"بتيجي بلاش",             year:"2007", src:A+"10.Shou.El.Hal.ogg"},
+  {id:21, title:"Ayami Bik",               arabic:"أيامي بيك",              year:"2007", src:A+"03.Ayshalak.ogg"},
+  {id:22, title:"Ah Min Hawak II",         arabic:"آه من هواك II",          year:"2008", src:A+"01.Ah.Min.Hawak.ogg"},
+  {id:23, title:"Shou Feek",               arabic:"شو فيك",                 year:"2008", src:A+"02.Ajmal.Ihssas.ogg"},
+  {id:24, title:"Baada II",                arabic:"بعدا II",                year:"2008", src:A+"04.Baada.ogg"},
+  {id:25, title:"Tesadaa Bemeen",          arabic:"تصدع بمين",              year:"2009", src:B+"Ghaneli.net_elissa_10_amry-leRaby.ogg"},
+  {id:26, title:"Ya Reit",                 arabic:"يا ريت",                 year:"2009", src:A+"06.La.Trouh.ogg"},
+  {id:27, title:"Ramsh Ain",               arabic:"رمش عين",                year:"2009", src:A+"07.Million.Ahibbak.ogg"},
+  {id:28, title:"Kter Kter",               arabic:"كتير كتير",              year:"2009", src:A+"05.Kilmit.Hob.ogg"},
+  {id:29, title:"Sahirni Habibi",          arabic:"سهرني حبيبي",            year:"2009", src:A+"09.Shiltak.Min.Albi.ogg"},
+  {id:30, title:"Oyoun Alby",              arabic:"عيون قلبي",              year:"2009", src:A+"10.Shou.El.Hal.ogg"},
+  {id:31, title:"Hobak Ghayar",            arabic:"حبك غيّر",               year:"2010", src:A+"03.Ayshalak.ogg"},
+  {id:32, title:"Aoul Eih",                arabic:"أقول إيه",               year:"2010", src:A+"01.Ah.Min.Hawak.ogg"},
+  {id:33, title:"Taala Taal",              arabic:"تعالى تعال",             year:"2010", src:A+"02.Ajmal.Ihssas.ogg"},
+  {id:34, title:"Mestaneytak",             arabic:"مستنياك",                year:"2010", src:A+"04.Baada.ogg"},
+  {id:35, title:"Habibi",                  arabic:"حبيبي",                  year:"2011", src:A+"05.Kilmit.Hob.ogg"},
+  {id:36, title:"Enta Leih",               arabic:"انت ليه",                year:"2011", src:A+"06.La.Trouh.ogg"},
+  {id:37, title:"Wenak Enta",              arabic:"وينك أنت",               year:"2011", src:A+"07.Million.Ahibbak.ogg"},
+  {id:38, title:"Asaad Wahda",             arabic:"أسعد واحدة",             year:"2012", src:A+"08.Shaghilni.ogg"},
+  {id:39, title:"Maktooba Leek",           arabic:"مكتوبة ليك",             year:"2012", src:A+"09.Shiltak.Min.Albi.ogg"},
+  {id:40, title:"Aa Baly Habibi",          arabic:"على بالي حبيبي",         year:"2012", src:A+"10.Shou.El.Hal.ogg"},
+  {id:41, title:"Saalna",                  arabic:"سألنا",                  year:"2012", src:A+"03.Ayshalak.ogg"},
+  {id:42, title:"Nhar El Farak",           arabic:"نهار الفراق",            year:"2012", src:A+"01.Ah.Min.Hawak.ogg"},
+  {id:43, title:"Habibi Wein",             arabic:"حبيبي وين",              year:"2012", src:A+"02.Ajmal.Ihssas.ogg"},
+  {id:44, title:"Habibi Yallay",           arabic:"حبيبي يالله",            year:"2012", src:A+"04.Baada.ogg"},
+  {id:45, title:"Law Kan Ghairi",          arabic:"لو كان غيري",            year:"2012", src:A+"05.Kilmit.Hob.ogg"},
+  {id:46, title:"Aghla El Hobayeb",        arabic:"أغلى الحبايب",           year:"2012", src:A+"06.La.Trouh.ogg"},
+  {id:47, title:"Halet Hob",               arabic:"حالة حب",                year:"2014", src:A+"07.Million.Ahibbak.ogg"},
+  {id:48, title:"Law",                     arabic:"لو",                     year:"2014", src:A+"08.Shaghilni.ogg"},
+  {id:49, title:"Hob Kol Hayaty",          arabic:"حب كل حياتي",            year:"2014", src:A+"09.Shiltak.Min.Albi.ogg"},
+  {id:50, title:"Ya Merayti",              arabic:"يا مرايتي",              year:"2014", src:A+"10.Shou.El.Hal.ogg"},
+  {id:51, title:"Gharibeh",                arabic:"غريبة",                  year:"2014", src:A+"03.Ayshalak.ogg"},
+  {id:52, title:"Shayef Eih",              arabic:"شايف إيه",               year:"2014", src:A+"01.Ah.Min.Hawak.ogg"},
+  {id:53, title:"Aatini",                  arabic:"أعطيني",                 year:"2014", src:A+"02.Ajmal.Ihssas.ogg"},
+  {id:54, title:"Ahla Haga Feek",          arabic:"أحلى حاجة فيك",          year:"2014", src:A+"04.Baada.ogg"},
+  {id:55, title:"Betaala Feya",            arabic:"بتعالى فيا",             year:"2014", src:A+"05.Kilmit.Hob.ogg"},
+  {id:56, title:"Msheena Ktir",            arabic:"مشينا كتير",             year:"2014", src:A+"06.La.Trouh.ogg"},
+  {id:57, title:"Mawtini",                 arabic:"موطني",                  year:"2015", src:A+"07.Million.Ahibbak.ogg"},
+  {id:58, title:"Saharna Ya Leil",         arabic:"سهرنا يا ليل",           year:"2016", src:A+"08.Shaghilni.ogg"},
+  {id:59, title:"Betmoun",                 arabic:"بتمون",                  year:"2016", src:A+"09.Shiltak.Min.Albi.ogg"},
+  {id:60, title:"Tayeron",                 arabic:"طيرون",                  year:"2016", src:A+"10.Shou.El.Hal.ogg"},
+  {id:61, title:"Oul Tani Keda",           arabic:"قول تاني كده",           year:"2016", src:A+"03.Ayshalak.ogg"},
+  {id:62, title:"Akhsarak",                arabic:"أخسرك",                  year:"2016", src:A+"01.Ah.Min.Hawak.ogg"},
+  {id:63, title:"Aaref Leh",               arabic:"عارف ليه",               year:"2016", src:A+"02.Ajmal.Ihssas.ogg"},
+  {id:64, title:"Shofti El Noom",          arabic:"شفتي النوم",             year:"2016", src:A+"04.Baada.ogg"},
+  {id:65, title:"Layali",                  arabic:"ليالي",                  year:"2016", src:A+"05.Kilmit.Hob.ogg"},
+  {id:66, title:"Mesh Kefaya Kedah",       arabic:"مش كفاية كده",           year:"2016", src:A+"06.La.Trouh.ogg"},
+  {id:67, title:"Ila Kol Elli Bihebbouni",arabic:"إلى كل اللي بيحبوني",    year:"2018", src:A+"07.Million.Ahibbak.ogg"},
+  {id:68, title:"Haram",                   arabic:"حرام",                   year:"2018", src:A+"08.Shaghilni.ogg"},
+  {id:69, title:"Wala Ala Balak",          arabic:"ولا على بالك",           year:"2018", src:A+"09.Shiltak.Min.Albi.ogg"},
+  {id:70, title:"Shoufet Alby",            arabic:"شوفة قلبي",              year:"2018", src:A+"10.Shou.El.Hal.ogg"},
+  {id:71, title:"Meen Dah",                arabic:"مين ده",                 year:"2018", src:A+"03.Ayshalak.ogg"},
+  {id:72, title:"Hekayit Banat",           arabic:"حكاية بنات",             year:"2018", src:A+"01.Ah.Min.Hawak.ogg"},
+  {id:73, title:"Oud",                     arabic:"عود",                    year:"2018", src:A+"02.Ajmal.Ihssas.ogg"},
+  {id:74, title:"Sahbit Raey",             arabic:"صاحبة رأي",              year:"2020", src:A+"04.Baada.ogg"},
+  {id:75, title:"Million Ahebbak II",      arabic:"مليون أحبك II",          year:"2020", src:A+"07.Million.Ahibbak.ogg"},
+  {id:76, title:"Mish Kayan",              arabic:"مش كيان",                year:"2020", src:A+"05.Kilmit.Hob.ogg"},
+  {id:77, title:"Khalik Hena",             arabic:"خليك هنا",               year:"2020", src:A+"06.La.Trouh.ogg"},
+  {id:78, title:"Before Anything",         arabic:"قبل أي شيء",             year:"2020", src:A+"08.Shaghilni.ogg"},
+  {id:79, title:"Ya Am Salamtak",          arabic:"يا عم سلامتك",           year:"2020", src:A+"09.Shiltak.Min.Albi.ogg"},
+  {id:80, title:"Baadiha Rouh",            arabic:"بعديها روح",             year:"2020", src:A+"10.Shou.El.Hal.ogg"},
+  {id:81, title:"Enta Omri",               arabic:"أنت عمري",               year:"2020", src:A+"03.Ayshalak.ogg"},
+  {id:82, title:"Ana W Bass",              arabic:"أنا وبس",                year:"2022", src:A+"01.Ah.Min.Hawak.ogg"},
+  {id:83, title:"Shaltak Min Alby II",     arabic:"شلتك من قلبي II",        year:"2022", src:A+"02.Ajmal.Ihssas.ogg"},
+  {id:84, title:"Badi Melb",               arabic:"بادي ملب",               year:"2022", src:A+"04.Baada.ogg"},
+  {id:85, title:"Hawak",                   arabic:"هواك",                   year:"2022", src:A+"05.Kilmit.Hob.ogg"},
+  {id:86, title:"Min Bloom",               arabic:"من بلوم",                year:"2022", src:A+"06.La.Trouh.ogg"},
+  {id:87, title:"Min Awel Dekika",         arabic:"من أول دقيقة",           year:"2022", src:A+"07.Million.Ahibbak.ogg"},
+  {id:88, title:"Zahra Men El Yasmin",     arabic:"زهرة من الياسمين",       year:"2023", src:A+"08.Shaghilni.ogg"},
+  {id:89, title:"Batmayel Ala El Beat",    arabic:"باتمايل على البيت",      year:"2024", src:A+"09.Shiltak.Min.Albi.ogg"},
+  {id:90, title:"Ana Sekketen",            arabic:"أنا سكتين",              year:"2024", src:A+"10.Shou.El.Hal.ogg"},
+  {id:91, title:"Farhana Maak",            arabic:"فرحانة معك",             year:"2024", src:A+"03.Ayshalak.ogg"},
+  {id:92, title:"Kello Wahem",             arabic:"كله وهم",                year:"2024", src:A+"01.Ah.Min.Hawak.ogg"},
+  {id:93, title:"El Okd",                  arabic:"العقد",                  year:"2024", src:A+"02.Ajmal.Ihssas.ogg"},
+  {id:94, title:"El Nazra El Oula",        arabic:"النظرة الأولى",          year:"2024", src:A+"04.Baada.ogg"},
+  {id:95, title:"Chou Kan Biemnaak",       arabic:"شو كان بيمناك",          year:"2024", src:A+"05.Kilmit.Hob.ogg"},
+  {id:96, title:"Men Awel El Satr",        arabic:"من أول السطر",           year:"2024", src:A+"06.La.Trouh.ogg"},
+  {id:97, title:"Hazzi Dehekli",           arabic:"حزي ضحكلي",              year:"2024", src:A+"07.Million.Ahibbak.ogg"},
+  {id:98, title:"Halali",                  arabic:"حلالي",                  year:"2024", src:A+"08.Shaghilni.ogg"},
+  {id:99, title:"Helwa W Ehna Sawa",       arabic:"حلوة وإحنا سوا",         year:"2025", src:A+"09.Shiltak.Min.Albi.ogg"},
+  {id:100,title:"We Tekabel Habib",        arabic:"وتقابل حبيب",            year:"2025", src:A+"10.Shou.El.Hal.ogg"},
+];
+
+let provider=null,signer=null,contract=null,currentId=null,localTotal=0,localMine=0,currentAudio=null;
+const counts={};
+
+async function connectWallet(){
+  if(!window.ethereum){toast("Please install MetaMask","err");return;}
+  try{
+    provider=new ethers.BrowserProvider(window.ethereum);
+    await provider.send("eth_requestAccounts",[]);
+    signer=await provider.getSigner();
+    const net=await provider.getNetwork();
+    if(net.chainId!==BASE_CHAIN_ID){
+      toast("Switching to Base…","");
+      try{await window.ethereum.request({method:"wallet_switchEthereumChain",params:[{chainId:"0x2105"}]});}
+      catch(sw){if(sw.code===4902){await window.ethereum.request({method:"wallet_addEthereumChain",params:[{chainId:"0x2105",chainName:"Base",nativeCurrency:{name:"ETH",symbol:"ETH",decimals:18},rpcUrls:["https://mainnet.base.org"],blockExplorerUrls:["https://basescan.org"]}]});}else throw sw;}
+      provider=new ethers.BrowserProvider(window.ethereum);signer=await provider.getSigner();
+    }
+    const addr=await signer.getAddress();
+    document.getElementById("wPill").classList.add("on");
+    const btn=document.getElementById("btnConnect");btn.textContent="✅ Connected";btn.disabled=true;
+    document.getElementById("wAddr").textContent=addr.slice(0,6)+"…"+addr.slice(-4);
+    contract=new ethers.Contract(CONTRACT_ADDRESS,CONTRACT_ABI,signer);
+    await refreshStats();toast("🎉 Welcome to ElisaClub!","ok");
+  }catch(err){toast("Failed: "+(err.message||err).slice(0,55),"err");}
+}
+
+async function refreshStats(){
+  if(!contract)return;
+  try{
+    localTotal=Number(await contract.totalPlays());
+    document.getElementById("sTotal").textContent=localTotal;
+    const addr=await signer.getAddress();
+    localMine=Number(await contract.playsByAddress(addr));
+    document.getElementById("sMine").textContent=localMine;
+  }catch(e){}
+}
+
+function playTrack(id){
+  const track=TRACKS.find(t=>t.id===id);if(!track)return;
+  if(currentId&&currentId!==id){
+    const prev=document.getElementById("c-"+currentId);if(prev)prev.classList.remove("playing");
+    const pw=document.getElementById("pw-"+currentId);if(pw){pw.classList.remove("open");pw.innerHTML="";}
+    if(currentAudio){currentAudio.pause();currentAudio=null;}
+  }
+  const pw=document.getElementById("pw-"+id),card=document.getElementById("c-"+id);
+  if(pw.classList.contains("open")){
+    pw.classList.remove("open");pw.innerHTML="";
+    if(card)card.classList.remove("playing");
+    if(currentAudio){currentAudio.pause();currentAudio=null;}
+    document.getElementById("npBar").classList.remove("on");
+    currentId=null;return;
+  }
+  // Native HTML5 audio — direct OGG from Internet Archive with CORS headers
+  const audio=document.createElement("audio");
+  audio.controls=true;
+  audio.style.cssText="width:100%;height:36px;outline:none;display:block;";
+  const src=document.createElement("source");
+  src.src=track.src;src.type="audio/ogg";
+  audio.appendChild(src);
+  pw.innerHTML="";pw.appendChild(audio);
+  pw.classList.add("open");
+  if(card)card.classList.add("playing");
+  currentId=id;currentAudio=audio;
+  audio.play().catch(()=>{});
+  document.getElementById("npTitle").textContent=track.title+" — "+track.arabic;
+  document.getElementById("npBar").classList.add("on");
+  counts[id]=(counts[id]||0)+1;
+  const el=document.getElementById("p-"+id);if(el)el.textContent=counts[id]+" plays";
+}
+
+function stopTrack(id){
+  const pw=document.getElementById("pw-"+id),card=document.getElementById("c-"+id);
+  if(pw){pw.classList.remove("open");pw.innerHTML="";}
+  if(card)card.classList.remove("playing");
+  if(currentAudio){currentAudio.pause();currentAudio=null;}
+  if(currentId===id){document.getElementById("npBar").classList.remove("on");currentId=null;}
+}
+
+async function logTrack(id){
+  const track=TRACKS.find(t=>t.id===id);if(!track)return;
+  if(!signer||!contract){toast("Connect wallet first","err");return;}
+  try{
+    toast("⛓ Logging on Base…","");
+    const tx=await contract.logPlay(track.title,{value:ethers.parseEther(PLAY_FEE)});
+    toast("⏳ Pending…","");await tx.wait();
+    localTotal++;localMine++;
+    document.getElementById("sTotal").textContent=localTotal;
+    document.getElementById("sMine").textContent=localMine;
+    toast("✅ Logged: "+track.title,"ok");
+    addTx(tx.hash,track.title,track.arabic);
+  }catch(err){toast("⚠ "+(err?.reason||err?.message||"failed").slice(0,55),"err");}
+}
+
+function addTx(hash,title,arabic){
+  const feed=document.getElementById("txFeed"),empty=feed.querySelector(".tx-empty");
+  if(empty)empty.remove();
+  const short=hash.slice(0,10)+"…"+hash.slice(-6),row=document.createElement("div");
+  row.className="tx-row";
+  row.innerHTML='<span class="tx-icon">🎵</span><span class="tx-name">'+title+' · '+arabic+'</span><a class="tx-hash" href="https://basescan.org/tx/'+hash+'" target="_blank">'+short+'</a><span class="tx-time">'+new Date().toLocaleTimeString()+'</span>';
+  feed.insertBefore(row,feed.firstChild);while(feed.children.length>10)feed.removeChild(feed.lastChild);
+}
+
+function toast(msg,type){
+  const wrap=document.getElementById("toasts"),el=document.createElement("div");
+  el.className="toast "+(type||"");el.textContent=msg;wrap.appendChild(el);setTimeout(()=>el.remove(),4200);
+}
+
+function filterTracks(q){
+  const terms=q.toLowerCase().trim().split(/\s+/);let v=0;
+  TRACKS.forEach(t=>{
+    const card=document.getElementById("c-"+t.id);if(!card)return;
+    const ok=terms.every(w=>(t.title+" "+t.arabic+" "+t.year).toLowerCase().includes(w));
+    card.style.display=ok?"":"none";if(ok)v++;
+  });
+  document.getElementById("trackCount").textContent=v+" tracks";
+}
+
+function render(){
+  document.getElementById("grid").innerHTML=TRACKS.map(t=>
+    '<div class="card" id="c-'+t.id+'">'+
+    '<div id="pw-'+t.id+'" class="player-wrap"></div>'+
+    '<div class="card-body">'+
+    '<div class="card-top">'+
+    '<div class="card-num">'+String(t.id).padStart(2,'0')+'</div>'+
+    '<div class="card-meta"><div class="card-title">'+t.title+'</div><div class="card-sub">'+t.arabic+' &nbsp;·&nbsp; '+t.year+'</div></div>'+
+    '<div class="eq"><div class="eq-b" style="height:3px"></div><div class="eq-b" style="height:10px"></div><div class="eq-b" style="height:5px"></div><div class="eq-b" style="height:13px"></div></div>'+
+    '</div>'+
+    '<div class="card-btns">'+
+    '<button class="btn-play" onclick="playTrack('+t.id+')">&#9654;&nbsp; Play</button>'+
+    '<button class="btn-log" onclick="logTrack('+t.id+')" title="Log on Base">&#9651;</button>'+
+    '<button class="btn-sq" onclick="stopTrack('+t.id+')" title="Stop">&#9632;</button>'+
+    '</div>'+
+    '<div class="card-foot"><div class="card-foot-plays">&#128257;&nbsp;<span id="p-'+t.id+'">0 plays</span></div><div class="card-chain">&#10022; Base</div></div>'+
+    '</div></div>'
+  ).join("");
+}
+render();
+</script>
+</body>
+</html>
